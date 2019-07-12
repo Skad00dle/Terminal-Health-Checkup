@@ -7,6 +7,8 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/robfig/cron"
 	"net/http"
+	"sync"
+	"time"
 )
 
 
@@ -113,7 +115,7 @@ type (
 	TerminalHealth struct {
 		gorm.Model
 		TerminalId	int
-		Result 		int
+		Result 		int						// 0 down, 1 up, 2 wrong url
 	}
 )
 
@@ -192,7 +194,11 @@ func fetchTerminals(ctx *gin.Context)  {
 |****************************************************************************************************************
 */
 
+
+var wgCron sync.WaitGroup
+
 func startHealthCheckup()  {
+	// TODO add lock file here
 	fmt.Println("checking health status")
 
 	var terminals []Terminal
@@ -200,17 +206,82 @@ func startHealthCheckup()  {
 
 	for _,terminal := range terminals {
 		if terminal.Url !="" {
+			wgCron.Add(1)
 			go checkHealth(terminal)
 		} else {
 			continue
 		}
 	}
-
+	wgCron.Wait()
 	fmt.Println("Health Check Completed")
 }
 
 func checkHealth(term Terminal)  {
-	fmt.Println("checking health of terminal ",term.Url)
+
+
+	tr := &http.Transport{
+		IdleConnTimeout:    time.Duration(term.Timeout) * time.Millisecond,
+	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Get(term.Url)
+
+	termHealth := TerminalHealth{}
+	termHealth.TerminalId = int(term.ID)
+
+	db.Create(&termHealth)
+
+	if(err != nil){
+		fmt.Println("got unexpected error")
+		fmt.Println(err.Error())
+		termHealth.Result = 2  // wrong url
+		db.Save(&termHealth)
+	}else {
+		if(resp.StatusCode == 200){
+			fmt.Println("Terminal",term.Url , "is working ")
+			termHealth.Result = 1  // working
+			db.Save(&termHealth)
+		}else {
+			fmt.Println("Terminal",term.Url , "is not working ")
+			time.Sleep(time.Duration(term.Frequency) * time.Millisecond)
+			retryHealthHit(term,termHealth,2)
+		}
+	}
+
+	wgCron.Done()
+}
+
+func retryHealthHit(term Terminal, termHealth TerminalHealth, retryCount int)  {
+	if(retryCount > term.Threshold){
+		termHealth.Result = 0 // not working
+		db.Save(&termHealth)
+		return
+	}
+
+	tr := &http.Transport{
+		IdleConnTimeout:    time.Duration(term.Timeout) * time.Millisecond,
+	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Get(term.Url)
+
+	if(err != nil){
+		fmt.Println("got unexpected error")
+		fmt.Println(err.Error())
+		termHealth.Result = 2  // wrong url
+		db.Save(&termHealth)
+		return
+	}else {
+		if(resp.StatusCode == 200){
+			fmt.Println("Terminal",term.Url , "is working ")
+			termHealth.Result = 1  //  working
+			db.Save(&termHealth)
+			return
+		}else {
+			fmt.Println("Terminal",term.Url , "is not working ")
+			time.Sleep(time.Duration(term.Frequency) * time.Millisecond)
+			retryHealthHit(term,termHealth,retryCount+1)
+			return
+		}
+	}
 }
 
 
