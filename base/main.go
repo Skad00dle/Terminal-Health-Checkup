@@ -35,6 +35,7 @@ func init() {
 	//Migrate the schema
 	db.AutoMigrate(&Terminal{})
 	db.AutoMigrate(&TerminalHealth{})
+	db.AutoMigrate(&TerminalHealthHit{})
 
 
 
@@ -116,6 +117,14 @@ type (
 		gorm.Model
 		TerminalId	int
 		Result 		int						// 0 down, 1 up, 2 wrong url
+	}
+)
+
+type (
+	TerminalHealthHit struct {
+		gorm.Model
+		TerminalHealthId	int
+		Result 		int						// -1 for error else status code
 	}
 )
 
