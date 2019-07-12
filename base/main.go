@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"net/http"
 )
 
 func main() {
@@ -14,7 +15,7 @@ func main() {
 	v1 := router.Group("/terminal")
 	{
 		v1.POST("/", addTerminal)
-		//v1.GET("/", fetchAllTodo)
+		v1.GET("/", fetchTerminals)
 		//v1.GET("/:id", fetchSingleTodo)
 		//v1.PUT("/:id", updateTodo)
 		//v1.DELETE("/:id", deleteTodo)
@@ -27,23 +28,11 @@ func main() {
 
 func addTerminal(ctx *gin.Context)  {     // add a new terminal into db
 
-	var term Terminal
-	ctx.BindJSON(&term)      // storing data received into variable "term"
 
-	//fmt.Println("json? ",term)
-	//timeout, _ := strconv.Atoi(ctx.PostForm("timeout"))
-	//frequency, _ := strconv.Atoi(ctx.PostForm("frequency"))
-	//threshold, _ := strconv.Atoi(ctx.PostForm("threshold"))
-	//terminal := Terminal{
-	//	Url: ctx.PostForm("url"),
-	//	Timeout: timeout,
-	//	Frequency: frequency,
-	//	Threshold: threshold,
-	//}
-	//fmt.Println(terminal)
-	//db.Save(&terminal)
+	var terms []Terminal
 
-	db.Save(&term)
+	ctx.Bind(&terms)
+	go createTerminals(terms)
 	fmt.Println("bana diya")
 }
 
@@ -78,4 +67,35 @@ type (
 		Threshold	 int			`json:"threshold"`
 	}
 )
+
+func createTerminals(terms []Terminal)  {
+	fmt.Println("terminals: ",terms)
+	for _,term := range terms{
+		test := Terminal{}
+		db.Where("url = ? ", fmt.Sprintf(term.Url)).First(&test)
+		if (test.Url == term.Url) {
+			test.Timeout 	= term.Timeout
+			test.Threshold 	= term.Threshold
+			test.Frequency 	= term.Frequency
+			db.Save(&test)
+			fmt.Println("Updated one terminal")
+		}else {
+			db.Save(&term)
+			fmt.Println("added a new terminal")
+		}
+	}
+}
+
+func fetchTerminals(ctx *gin.Context)  {
+	fmt.Println("fetching all terminals")
+	var terminals []Terminal
+	db.Find(&terminals)
+	if len(terminals) <= 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{"status": http.StatusNotFound, "message": "No todo found!"})
+		return
+	} else {
+		ctx.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "data": terminals})
+	}
+
+}
 

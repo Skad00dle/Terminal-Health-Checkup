@@ -5,7 +5,7 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-func initiateDB()  {
+func InitiateDB()  {
 
 	var db *gorm.DB
 
