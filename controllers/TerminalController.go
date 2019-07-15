@@ -1,11 +1,11 @@
 package controllers
 
 import (
-	models "../models"
-	DbUtility "../pkg"
-	Services "../services"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"miniProject/models"
+	DbUtility "miniProject/pkg"
+	Services "miniProject/services"
 	"net/http"
 )
 

@@ -1,8 +1,8 @@
 package main
 
 import (
-	DbUtility "./pkg"
 	"fmt"
+	DbUtility "miniProject/pkg"
 	"sync"
 )
 

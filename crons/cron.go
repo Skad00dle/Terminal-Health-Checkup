@@ -1,10 +1,10 @@
 package crons
 
 import (
-	Models "../models"
-	DbUtility "../pkg"
 	"fmt"
 	"github.com/robfig/cron"
+	Models "miniProject/models"
+	DbUtility "miniProject/pkg"
 	"net/http"
 	"sync"
 	"time"
@@ -12,11 +12,15 @@ import (
 
 
 func InititateCrons()  {
+
+	fmt.Println("creating a cron")
 	c := cron.New()
 
 	c.AddFunc(" */1 * * * *", startHealthCheckup)
 
 	c.Start()
+
+	fmt.Println("started cron")
 }
 
 

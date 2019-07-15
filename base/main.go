@@ -1,11 +1,11 @@
 package main
 
 import (
-	CronUtility "../crons"
-	DbUtility "../pkg"
-	Routes "../pkg"
 	"fmt"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"miniProject/crons"
+	"miniProject/pkg"
+	"miniProject/routes"
 )
 
 
@@ -16,18 +16,20 @@ import (
 */
 
 func init() {
-	//open a db connection
-	DbUtility.InitiateDB()
+	////open a db connection
+	pkg.InitiateDB()
+	//
+	////initiate model migrations
+	pkg.MigrateDB()
 
-	//initiate model migrations
-	DbUtility.MigrateDB()
+	//
+	//starting crons
+	crons.InititateCrons()
 
 	//initiate routes
-	Routes.InitiateRoutes()
+	routes.InitiateRoutes()
 
 
-	//starting crons
-	CronUtility.InititateCrons()
 
 
 

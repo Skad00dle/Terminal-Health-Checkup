@@ -1,8 +1,9 @@
-package pkg
+package routes
 
 import (
-	Controller "../controllers"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	Controller "miniProject/controllers"
 )
 
 func InitiateRoutes()  {
@@ -16,6 +17,8 @@ func InitiateRoutes()  {
 		//v1.PUT("/:id", updateTodo)
 		//v1.DELETE("/:id", deleteTodo)
 	}
+
+	fmt.Println("firing routes")
 
 	router.Run()
 }

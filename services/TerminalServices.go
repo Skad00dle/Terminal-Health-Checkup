@@ -1,9 +1,9 @@
 package services
 
 import (
-	"../models"
-	DbUtility "../pkg"
 	"fmt"
+	"miniProject/models"
+	DbUtility "miniProject/pkg"
 )
 
 func CreateTerminals(terms []models.Terminal)  {
