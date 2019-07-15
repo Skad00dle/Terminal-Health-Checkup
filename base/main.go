@@ -115,7 +115,7 @@ type (
 type (
 	TerminalHealth struct {
 		gorm.Model
-		TerminalId	int
+		TerminalId	uint
 		Result 		int						// 0 down, 1 up, 2 wrong url
 	}
 )
@@ -123,8 +123,8 @@ type (
 type (
 	TerminalHealthHit struct {
 		gorm.Model
-		TerminalHealthId	int
-		Result 		int						// -1 for error else status code
+		TerminalHealthId	uint
+		Result 				int						// -1 for error else status code
 	}
 )
 
@@ -157,7 +157,6 @@ func addTerminal(ctx *gin.Context)  {     // add a new terminal into db
 
 
 func createTerminals(terms []Terminal)  {
-	fmt.Println("terminals: ",terms)
 	for _,term := range terms{
 		test := Terminal{}
 		db.Where("url = ? ", fmt.Sprintf(term.Url)).First(&test)
@@ -179,7 +178,7 @@ func fetchTerminals(ctx *gin.Context)  {
 	var terminals []Terminal
 	db.Find(&terminals)
 	if len(terminals) <= 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{"status": http.StatusNotFound, "message": "No todo found!"})
+		ctx.JSON(http.StatusNotFound, gin.H{"status": http.StatusNotFound, "message": "No terminals found!"})
 		return
 	} else {
 		ctx.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "data": terminals})
@@ -235,22 +234,31 @@ func checkHealth(term Terminal)  {
 	resp, err := client.Get(term.Url)
 
 	termHealth := TerminalHealth{}
-	termHealth.TerminalId = int(term.ID)
+	termHealth.TerminalId = term.ID
 
 	db.Create(&termHealth)
+
+	termHealthHit := TerminalHealthHit{}
+	termHealthHit.TerminalHealthId =termHealth.ID
 
 	if(err != nil){
 		fmt.Println("got unexpected error")
 		fmt.Println(err.Error())
 		termHealth.Result = 2  // wrong url
+		termHealthHit.Result = -1  //wrong hit
+		db.Save(&termHealthHit)
 		db.Save(&termHealth)
 	}else {
 		if(resp.StatusCode == 200){
 			fmt.Println("Terminal",term.Url , "is working ")
 			termHealth.Result = 1  // working
+			termHealthHit.Result = 200  //successful hit
+			db.Save(&termHealthHit)
 			db.Save(&termHealth)
 		}else {
 			fmt.Println("Terminal",term.Url , "is not working ")
+			termHealthHit.Result = resp.StatusCode  //wrong hit
+			db.Save(&termHealthHit)
 			time.Sleep(time.Duration(term.Frequency) * time.Millisecond)
 			retryHealthHit(term,termHealth,2)
 		}
@@ -266,6 +274,9 @@ func retryHealthHit(term Terminal, termHealth TerminalHealth, retryCount int)  {
 		return
 	}
 
+	termHealthHit := TerminalHealthHit{}
+	termHealthHit.TerminalHealthId =termHealth.ID
+
 	tr := &http.Transport{
 		IdleConnTimeout:    time.Duration(term.Timeout) * time.Millisecond,
 	}
@@ -276,16 +287,22 @@ func retryHealthHit(term Terminal, termHealth TerminalHealth, retryCount int)  {
 		fmt.Println("got unexpected error")
 		fmt.Println(err.Error())
 		termHealth.Result = 2  // wrong url
+		termHealthHit.Result = -1  //wrong hit
+		db.Save(&termHealthHit)
 		db.Save(&termHealth)
 		return
 	}else {
 		if(resp.StatusCode == 200){
 			fmt.Println("Terminal",term.Url , "is working ")
 			termHealth.Result = 1  //  working
+			termHealthHit.Result = 200  //successful hit
+			db.Save(&termHealthHit)
 			db.Save(&termHealth)
 			return
 		}else {
 			fmt.Println("Terminal",term.Url , "is not working ")
+			termHealthHit.Result = resp.StatusCode  //wrong hit
+			db.Save(&termHealthHit)
 			time.Sleep(time.Duration(term.Frequency) * time.Millisecond)
 			retryHealthHit(term,termHealth,retryCount+1)
 			return
