@@ -1,6 +1,8 @@
 package crons
 
 import (
+	Models "../models"
+	DbUtility "../pkg"
 	"fmt"
 	"github.com/robfig/cron"
 	"net/http"
@@ -26,8 +28,8 @@ func startHealthCheckup()  {
 	// TODO add lock file here
 	fmt.Println("checking health status")
 
-	var terminals []Terminal
-	db.Find(&terminals)
+	var terminals []Models.Terminal
+	DbUtility.DB.Find(&terminals)
 
 	for _,terminal := range terminals {
 		if terminal.Url !="" {
@@ -41,7 +43,7 @@ func startHealthCheckup()  {
 	fmt.Println("Health Check Completed")
 }
 
-func checkHealth(term Terminal)  {
+func checkHealth(term Models.Terminal)  {
 
 
 	tr := &http.Transport{
@@ -50,12 +52,12 @@ func checkHealth(term Terminal)  {
 	client := &http.Client{Transport: tr}
 	resp, err := client.Get(term.Url)
 
-	termHealth := TerminalHealth{}
+	termHealth := Models.TerminalHealth{}
 	termHealth.TerminalId = term.ID
 
-	db.Create(&termHealth)
+	DbUtility.DB.Create(&termHealth)
 
-	termHealthHit := TerminalHealthHit{}
+	termHealthHit := Models.TerminalHealthHit{}
 	termHealthHit.TerminalHealthId =termHealth.ID
 
 	if(err != nil){
@@ -63,19 +65,19 @@ func checkHealth(term Terminal)  {
 		fmt.Println(err.Error())
 		termHealth.Result = 2  // wrong url
 		termHealthHit.Result = -1  //wrong hit
-		db.Save(&termHealthHit)
-		db.Save(&termHealth)
+		DbUtility.DB.Save(&termHealthHit)
+		DbUtility.DB.Save(&termHealth)
 	}else {
 		if(resp.StatusCode == 200){
 			fmt.Println("Terminal",term.Url , "is working ")
 			termHealth.Result = 1  // working
 			termHealthHit.Result = 200  //successful hit
-			db.Save(&termHealthHit)
-			db.Save(&termHealth)
+			DbUtility.DB.Save(&termHealthHit)
+			DbUtility.DB.Save(&termHealth)
 		}else {
 			fmt.Println("Terminal",term.Url , "is not working ")
 			termHealthHit.Result = resp.StatusCode  //wrong hit
-			db.Save(&termHealthHit)
+			DbUtility.DB.Save(&termHealthHit)
 			time.Sleep(time.Duration(term.Frequency) * time.Millisecond)
 			retryHealthHit(term,termHealth,2)
 		}
@@ -84,14 +86,14 @@ func checkHealth(term Terminal)  {
 	wgCron.Done()
 }
 
-func retryHealthHit(term Terminal, termHealth TerminalHealth, retryCount int)  {
+func retryHealthHit(term Models.Terminal, termHealth Models.TerminalHealth, retryCount int)  {
 	if(retryCount > term.Threshold){
 		termHealth.Result = 0 // not working
-		db.Save(&termHealth)
+		DbUtility.DB.Save(&termHealth)
 		return
 	}
 
-	termHealthHit := TerminalHealthHit{}
+	termHealthHit := Models.TerminalHealthHit{}
 	termHealthHit.TerminalHealthId =termHealth.ID
 
 	tr := &http.Transport{
@@ -105,21 +107,21 @@ func retryHealthHit(term Terminal, termHealth TerminalHealth, retryCount int)  {
 		fmt.Println(err.Error())
 		termHealth.Result = 2  // wrong url
 		termHealthHit.Result = -1  //wrong hit
-		db.Save(&termHealthHit)
-		db.Save(&termHealth)
+		DbUtility.DB.Save(&termHealthHit)
+		DbUtility.DB.Save(&termHealth)
 		return
 	}else {
 		if(resp.StatusCode == 200){
 			fmt.Println("Terminal",term.Url , "is working ")
 			termHealth.Result = 1  //  working
 			termHealthHit.Result = 200  //successful hit
-			db.Save(&termHealthHit)
-			db.Save(&termHealth)
+			DbUtility.DB.Save(&termHealthHit)
+			DbUtility.DB.Save(&termHealth)
 			return
 		}else {
 			fmt.Println("Terminal",term.Url , "is not working ")
 			termHealthHit.Result = resp.StatusCode  //wrong hit
-			db.Save(&termHealthHit)
+			DbUtility.DB.Save(&termHealthHit)
 			time.Sleep(time.Duration(term.Frequency) * time.Millisecond)
 			retryHealthHit(term,termHealth,retryCount+1)
 			return

@@ -47,8 +47,6 @@ func main() {
 
 }
 
-
-
 func ownServerStatus()  {
 	fmt.Println("server ready and running")
 }
