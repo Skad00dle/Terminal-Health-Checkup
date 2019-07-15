@@ -29,10 +29,6 @@ func init() {
 	//initiate routes
 	routes.InitiateRoutes()
 
-
-
-
-
 }
 
 /*
