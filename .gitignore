@@ -1,3 +1,4 @@
 vendor/
 test.go
-.idea/workspace.xml
+.idea/
+.DS_Store
